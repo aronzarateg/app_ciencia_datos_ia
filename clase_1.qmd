@@ -1,0 +1,215 @@
+
+---
+title: "Evaluación de los principios FAIR"
+subtitle: "Base de Datos de Emergencia y Daños del INDECI (2019–2020)"
+author: "Ciencia de Datos e Inteligencia Artificial Aplicada"
+date: today
+date-format: "DD/MM/YYYY"
+lang: es
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-title: "Contenido"
+    number-sections: true
+    smooth-scroll: true
+    code-fold: true
+    code-tools: true
+    df-print: paged
+
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{css}
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+h1, h2, h3 {
+  color: #075985;
+}
+
+.table {
+  font-size: 0.92rem;
+}
+
+.callout {
+  border-radius: 10px;
+}
+```
+
+# Introducción
+
+Los principios **FAIR** permiten evaluar cómo se gestionan
+los datos para facilitar su localización, acceso,
+interoperabilidad y reutilización.
+
+En este trabajo se realiza una evaluación preliminar
+de la base de datos de emergencias y daños del
+Instituto Nacional de Defensa Civil (INDECI),
+correspondiente al periodo 2019–2020.
+
+::: {.callout-note}
+## Fuente de datos
+
+**Institución:** INDECI, Perú.
+
+**Periodo:** 2019–2020.
+
+**Formato descargado:** Excel (.xls).
+
+**Tipo de evaluación:** Preliminar.
+
+[Consultar la base de datos del INDECI](https://portal.indeci.gob.pe/direccion-politicas-y-planes/base-de-datos-de-emergencia-y-danos/base-de-datos-de-emergencia-y-danos-con-poblaciones-vulnerables-y-grupos-etareos-2019-2020/)
+:::
+
+# Objetivo
+
+Evaluar los cuatro principios FAIR e identificar
+fortalezas, limitaciones y recomendaciones para
+mejorar la gestión y reutilización de los datos.
+
+# Evaluación FAIR
+
+```{r}
+#| label: tbl-evaluacion
+#| tbl-cap: "Evaluación preliminar de los principios FAIR"
+
+library(knitr)
+
+fair <- data.frame(
+  Principio = c(
+    "F - Localizable",
+    "A - Accesible",
+    "I - Interoperable",
+    "R - Reutilizable"
+  ),
+  Evaluacion = c(
+    "Publicado en el portal oficial del INDECI, con título y periodo identificables.",
+    "Permite descargar un archivo Excel (.xls), aunque el ícono muestra PDF.",
+    "El archivo Excel puede utilizarse en R y Python; falta verificar su estandarización.",
+    "Tiene potencial para nuevas investigaciones; falta verificar licencia y documentación."
+  ),
+  Estado = c(
+    "Parcial",
+    "Descarga disponible",
+    "Parcial",
+    "Por verificar"
+  )
+)
+
+kable(
+  fair,
+  format = "html",
+  escape = TRUE,
+  table.attr = 'class="table table-striped table-hover"'
+)
+```
+
+::: {.callout-important}
+## Consideración metodológica
+
+La posibilidad de descargar un archivo no garantiza
+por sí sola el cumplimiento completo del principio
+de accesibilidad FAIR.
+
+Tampoco se debe confundir la disponibilidad pública
+con la autorización para cualquier reutilización.
+:::
+
+# Observaciones y recomendaciones
+
+```{r}
+#| label: tbl-mejoras
+#| tbl-cap: "Oportunidades de mejora identificadas"
+
+mejoras <- data.frame(
+  Principio = c("F", "A", "I", "R"),
+  Observacion = c(
+    "No se observa un DOI en la página mostrada.",
+    "El ícono PDF no coincide con el Excel descargado.",
+    "El archivo utiliza el formato antiguo .xls.",
+    "La licencia no se identifica en la captura."
+  ),
+  Recomendacion = c(
+    "Mejorar los metadatos e incorporar un identificador persistente.",
+    "Corregir el ícono y describir el formato real.",
+    "Ofrecer CSV UTF-8 y un diccionario de variables.",
+    "Documentar licencia, metodología y condiciones de uso."
+  )
+)
+
+kable(
+  mejoras,
+  format = "html",
+  escape = TRUE,
+  table.attr = 'class="table table-striped table-hover"'
+)
+```
+
+# Interpretación de resultados
+
+## Localizable
+
+La base de datos puede encontrarse mediante
+el portal institucional del INDECI.
+
+Sin embargo, es necesario verificar la existencia
+de identificadores persistentes y metadatos completos.
+
+## Accesible
+
+El archivo puede descargarse en formato Excel.
+
+Se identificó una inconsistencia visual, debido
+a que el ícono de descarga corresponde a PDF.
+
+Esta observación afecta la claridad de la interfaz,
+pero no impide obtener el archivo.
+
+## Interoperable
+
+El formato Excel permite procesar los datos
+mediante herramientas como RStudio y Python.
+
+No obstante, debe verificarse la consistencia
+de los nombres de variables, unidades y tipos de datos.
+
+## Reutilizable
+
+La información puede resultar útil para estudios
+sobre emergencias, daños y poblaciones vulnerables.
+
+Para confirmar su reutilización se necesita revisar
+la licencia, procedencia, metodología y documentación.
+
+# Conclusiones
+
+::: {.callout-tip}
+## Conclusión general
+
+La base de datos del INDECI presenta condiciones
+favorables de localización y descarga.
+
+Sin embargo, la evaluación preliminar identifica
+oportunidades de mejora en la documentación,
+estandarización y claridad de la presentación.
+
+La revisión de los metadatos y de la estructura
+interna del archivo permitirá realizar una
+evaluación FAIR más completa.
+:::
+
+# Referencia
+
+Instituto Nacional de Defensa Civil (INDECI).
+(s. f.). *Base de Datos de Emergencia y Daños
+con Poblaciones Vulnerables y Grupos Etáreos
+2019–2020*.
+
+[Portal institucional del INDECI](https://portal.indeci.gob.pe/direccion-politicas-y-planes/base-de-datos-de-emergencia-y-danos/base-de-datos-de-emergencia-y-danos-con-poblaciones-vulnerables-y-grupos-etareos-2019-2020/)
