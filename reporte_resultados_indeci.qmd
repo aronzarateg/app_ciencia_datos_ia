@@ -1,0 +1,217 @@
+---
+title: "Resultados del análisis de emergencias – INDECI"
+subtitle: "Reporte de resultados posteriores a la depuración de datos"
+author: "Ciencia de Datos e Inteligencia Artificial Aplicada"
+lang: es
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-title: "Contenido"
+    number-sections: true
+    embed-resources: true
+    code-fold: true
+    smooth-scroll: true
+
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+paquetes <- c("readxl", "ggplot2", "knitr")
+faltantes <- paquetes[!vapply(paquetes, requireNamespace, logical(1), quietly = TRUE)]
+if (length(faltantes)) stop("Instale los paquetes: ", paste(faltantes, collapse = ", "))
+library(readxl)
+library(ggplot2)
+library(knitr)
+ruta <- "RESULTADOS_FINALES_INDECI (2).xlsx"
+if (!file.exists(ruta)) stop("Coloque el Excel en la misma carpeta del .qmd: ", ruta)
+hojas <- excel_sheets(ruta)
+datos <- lapply(hojas, function(h) as.data.frame(read_excel(ruta, sheet = h)))
+names(datos) <- hojas
+desc <- datos[["1_Descriptivos"]]
+normal <- datos[["2_Shapiro_Wilk"]]
+levene <- datos[["3_Levene"]]
+kw <- datos[["4_Kruskal_Wallis"]]
+dunn <- datos[["5_Dunn_Bonferroni"]]
+region <- datos[["6_Region_Natural"]]
+clas <- datos[["7_Clasificacion"]]
+eta <- datos[["8_Eta_cuadrado"]]
+fmt <- function(x) format(x, big.mark = ".", decimal.mark = ",", trim = TRUE, scientific = FALSE)
+```
+
+# Alcance y procedencia
+
+Este reporte **presenta resultados ya calculados** y contenidos en el archivo Excel entregado. No vuelve a limpiar los registros originales ni recalcula las pruebas inferenciales. Por ello, **la limpieza se considera una etapa previa reportada, no verificada aquí**: para documentar qué filas se eliminaron, cómo se trataron los faltantes y qué transformaciones se realizaron, se requiere la base original y el script de limpieza.
+
+**Archivo de resultados:** `RESULTADOS_FINALES_INDECI (2).xlsx`.
+
+**Fuente primaria del proyecto:** [Portal Nacional de Datos Abiertos – emergencias y daños](https://www.datosabiertos.gob.pe/dataset/emergencias-y-da%C3%B1os-nivel-nacional-por-departamento/resource/f2662a18-9841-4b2e-9333).
+
+# Resumen del análisis
+
+```{r}
+#| results: asis
+cat("- **Observaciones informadas en Kruskal–Wallis:** ", fmt(eta$n_total[1]), "\n", sep = "")
+cat("- **Tipos de evento analizados:** ", nrow(desc), "\n", sep = "")
+cat("- **Comparaciones post hoc registradas:** ", nrow(dunn), "\n", sep = "")
+cat("- **Regiones naturales resumidas:** ", nrow(region), "\n", sep = "")
+```
+
+::: {.callout-note}
+## Precaución de interpretación
+Las tablas son resúmenes de resultados y no constituyen por sí solas una bitácora de limpieza. El valor de `n` corresponde a la prueba o tabla indicada, no necesariamente al total del CSV histórico.
+:::
+
+# Estadísticos descriptivos
+
+```{r}
+#| tbl-cap: "Distribución de damnificados por tipo de evento (resultados aportados)"
+kable(desc, digits = 2)
+```
+
+```{r}
+#| fig-cap: "Total de damnificados por tipo de evento"
+#| fig-width: 10
+#| fig-height: 7
+ggplot(desc, aes(x = reorder(tipo_evento, total), y = total, fill = grupo_impacto)) +
+  geom_col() + coord_flip() +
+  labs(x = "Tipo de evento", y = "Total de damnificados", fill = "Grupo de impacto") +
+  scale_y_continuous(labels = function(x) fmt(x)) + theme_minimal(base_size = 12)
+```
+
+Los valores agregados pueden estar concentrados en eventos extremos. Para describir un evento típico conviene revisar conjuntamente la mediana, el rango intercuartílico, el percentil 95 y el porcentaje de ceros, además de la media.
+
+# Análisis Exploratorio de Datos (EDA)
+
+## Distribución de damnificados por tipo de emergencia
+
+```{r}
+#| fig-cap: "Distribución del total de damnificados por tipo de emergencia"
+#| fig-width: 11
+#| fig-height: 7
+
+ggplot(desc, aes(
+  x = reorder(tipo_evento, total),
+  y = total,
+  fill = grupo_impacto
+)) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(
+    labels = function(x) fmt(x)
+  ) +
+  labs(
+    title = "Damnificados por tipo de emergencia",
+    subtitle = "Análisis exploratorio de resultados agregados",
+    x = "Tipo de emergencia",
+    y = "Total de damnificados",
+    fill = "Grupo de impacto"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+## Interpretación
+
+El gráfico permite comparar el número total de damnificados
+entre los diferentes tipos de emergencia registrados.
+
+Las diferencias observadas deben interpretarse considerando
+la frecuencia de cada tipo de evento y la posible influencia
+de emergencias extraordinarias.
+
+Los totales agregados no representan necesariamente
+el impacto promedio de una emergencia individual.
+
+# Evaluación de normalidad
+
+```{r}
+#| tbl-cap: "Resultados de Shapiro–Wilk reportados en el Excel"
+kable(normal, digits = 5)
+```
+
+**Nota metodológica:** Los valores `p_valor = 0` son resultados numéricos redondeados o limitados por precisión; no deben interpretarse como probabilidades exactamente nulas. La hoja de origen no incluye el estadístico W. Los tamaños de muestra de esta tabla pueden diferir de los tamaños totales por evento, por lo que debe documentarse el procedimiento de selección de observaciones.
+
+# Homogeneidad de varianzas
+
+```{r}
+#| tbl-cap: "Prueba de Levene reportada"
+kable(levene)
+```
+
+La prueba de Levene evalúa la igualdad de varianzas. Un resultado significativo indica evidencia contra ese supuesto; por sí solo **no determina** que Kruskal–Wallis sea válido, pues también deben considerarse independencia, escala de medición y forma de las distribuciones.
+
+# Comparación entre tipos de evento
+
+```{r}
+#| tbl-cap: "Kruskal–Wallis: análisis principal y sensibilidad"
+kable(kw)
+```
+
+El resultado principal informado es **H = `r kw$H[1]`**, con **`r kw$gl[1]` grados de libertad** y **`r kw$p_valor[1]`**. Esto respalda diferencias en las distribuciones o rangos de damnificados entre al menos algunos tipos de evento; no identifica por sí solo cuáles pares difieren ni demuestra diferencias entre todas las medianas.
+
+La segunda fila presenta el análisis de sensibilidad sin Pisco 2007, tal como fue registrado en el archivo de resultados. No es posible verificar esa exclusión sin los datos y el código originales.
+
+# Comparaciones múltiples: Dunn–Bonferroni
+
+```{r}
+#| results: asis
+sig <- sum(!is.na(dunn$p.adj) & dunn$p.adj < 0.05)
+cat("Se registraron **", nrow(dunn), "** comparaciones, de las cuales **", sig, "** tienen p ajustado menor que 0,05.\n", sep = "")
+```
+
+```{r}
+#| tbl-cap: "Comparaciones con p ajustado inferior a 0,05"
+dunn_sig <- dunn[!is.na(dunn$p.adj) & dunn$p.adj < 0.05, , drop = FALSE]
+kable(dunn_sig, digits = 5)
+```
+
+La corrección Bonferroni controla el error por comparaciones múltiples. La significancia estadística no informa por sí sola la magnitud o relevancia práctica de las diferencias.
+
+# Resultados por región natural
+
+```{r}
+#| tbl-cap: "Resultados por región natural"
+kable(region, digits = 4)
+```
+
+```{r}
+#| fig-cap: "Número de registros por región natural"
+ggplot(region, aes(x = reorder(region, n), y = n)) +
+  geom_col(fill = "#147d90") + coord_flip() +
+  scale_y_continuous(labels = function(x) fmt(x)) +
+  labs(x = "Región natural", y = "Número de registros") + theme_minimal(base_size = 12)
+```
+
+# Clasificación del impacto
+
+```{r}
+#| tbl-cap: "Clasificación del impacto proporcionada en el archivo"
+kable(clas, digits = 2)
+```
+
+La clasificación se reproduce como fue entregada. Para interpretarla como una escala validada es necesario conocer la regla de clasificación utilizada y su justificación.
+
+# Tamaño del efecto
+
+```{r}
+#| tbl-cap: "Medida de tamaño del efecto registrada"
+kable(eta, digits = 4)
+```
+
+El archivo reporta **η² = `r eta$eta2[1]`**. Se presenta la interpretación incluida en la hoja original; su significado exacto y la fórmula empleada deben contrastarse con el script analítico antes de describirlo como porcentaje de variabilidad explicada.
+
+# Conclusiones
+
+Los resultados proporcionados evidencian heterogeneidad entre tipos de evento en la variable de damnificados, de acuerdo con la prueba de Kruskal–Wallis. El análisis post hoc permite identificar comparaciones con diferencias estadísticamente significativas tras el ajuste por multiplicidad. La distribución presenta numerosos ceros y valores extremos, por lo que es importante complementar las medias con medidas robustas.
+
+**Pendiente para documentar la limpieza:** adjuntar base antes/después, reglas aplicadas, registros eliminados o corregidos, tratamiento de faltantes y duplicados, y script reproducible. Este reporte no atribuye acciones de limpieza específicas sin evidencia documental.
+
+# Referencia
+
+Instituto Nacional de Defensa Civil (INDECI). *Emergencias y daños a nivel nacional*. Portal Nacional de Datos Abiertos del Perú. [Consultar recurso](https://www.datosabiertos.gob.pe/dataset/emergencias-y-da%C3%B1os-nivel-nacional-por-departamento/resource/f2662a18-9841-4b2e-9333).
