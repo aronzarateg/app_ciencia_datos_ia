@@ -1,0 +1,337 @@
+---
+title: "Protocolo de preparación y EDA: emergencias y daños en el Perú"
+subtitle: "Producto de la Unidad I | INDECI, 2019–2020"
+author: "Ciencia de Datos e IA Aplicada"
+lang: es
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    number-sections: true
+    embed-resources: true
+    code-fold: true
+    df-print: paged
+    fig-responsive: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+requeridos <- c("readxl", "ggplot2", "knitr")
+faltan <- requeridos[!vapply(requeridos, requireNamespace, logical(1), quietly=TRUE)]
+if(length(faltan)) stop("Instalar paquetes: ", paste(faltan, collapse=", "))
+library(readxl); library(ggplot2); library(knitr)
+ruta <- "data/sin_procesar/BD-EMER-Y-DAÑOS-2019-2020 (1).xlsx"
+if (!file.exists(ruta)) stop("No se encuentra el Excel: ", ruta)
+dir.create("data/procesado", recursive=TRUE, showWarnings=FALSE)
+original <- as.data.frame(read_excel(ruta, sheet="BD2019-2020", skip=4, .name_repair="unique"))
+# Se excluyen únicamente filas sin año 2019/2020 o sin departamento/tipo de evento.
+conservar <- original[["AÑO"]] %in% c(2019,2020) & !is.na(original[["DPTO"]]) & !is.na(original[["EMER"]])
+conservar[is.na(conservar)] <- FALSE
+base <- original[conservar, , drop=FALSE]
+base$FECHA_PARSEADA <- as.Date(as.character(base$FECHA), format="%d/%m/%Y")
+base$ANIO <- as.integer(base[["AÑO"]])
+base$MES_NUM <- as.integer(format(base$FECHA_PARSEADA, "%m"))
+base$DEPARTAMENTO <- toupper(trimws(as.character(base$DPTO)))
+base$TIPO_EMERGENCIA <- toupper(trimws(as.character(base$EMER)))
+base$PERSONAS_AFECTADAS <- suppressWarnings(as.numeric(base$AFECTADOS))
+base$PERSONAS_DAMNIFICADAS <- suppressWarnings(as.numeric(base$DAMNI))
+base$PERSONAS_FALLECIDAS <- suppressWarnings(as.numeric(base$FALLE))
+base$PERSONAS_LESIONADAS <- suppressWarnings(as.numeric(base$LESI))
+seleccion <- c("ID_SINPAD","FECHA_PARSEADA","ANIO","MES_NUM","COD_DISTRITO","DEPARTAMENTO","PROV","DIST","TIPO_EMERGENCIA","PERSONAS_AFECTADAS","PERSONAS_DAMNIFICADAS","PERSONAS_FALLECIDAS","PERSONAS_LESIONADAS")
+curado <- base[,seleccion,drop=FALSE]
+write.csv(curado, "data/procesado/emergencias_2019_2020_curado.csv", row.names=FALSE, na="", fileEncoding="UTF-8")
+fmt <- function(x) format(x, big.mark=".", decimal.mark=",", trim=TRUE, scientific=FALSE)
+resumen_anual <- as.data.frame(table(curado$ANIO)); names(resumen_anual) <- c("anio","registros")
+resumen_dep <- as.data.frame(sort(table(curado$DEPARTAMENTO),decreasing=TRUE)); names(resumen_dep) <- c("departamento","registros")
+resumen_tipo <- as.data.frame(sort(table(curado$TIPO_EMERGENCIA),decreasing=TRUE)); names(resumen_tipo) <- c("tipo","registros")
+```
+
+# 1. Contexto y pregunta de investigación
+
+Los registros administrativos de emergencias del INDECI permiten explorar la distribución temporal y territorial de eventos reportados y sus consecuencias. El análisis se circunscribe a **2019–2020**: no permite inferir tendencias de 2015–2024 ni atribuir causalidad a factores no medidos.
+
+**Pregunta de investigación:** ¿Cómo varían la frecuencia de registros de emergencias y la cantidad de personas damnificadas según el año, el departamento y el tipo de emergencia en el Perú durante 2019–2020?
+
+**Hipótesis exploratorias (propuestas, no contrastes causales):**
+
+- **H1.** La frecuencia de registros difiere entre 2019 y 2020.
+- **H2.** Los registros de emergencias se distribuyen de manera desigual entre departamentos.
+- **H3.** La distribución de personas damnificadas difiere entre tipos de emergencia.
+
+Las conclusiones del EDA serán **provisionales y descriptivas**. Las diferencias observadas pueden reflejar tanto la incidencia de eventos como variaciones en el registro institucional.
+
+# 2. Fuentes de datos y consideraciones éticas
+
+**Fuente primaria:** Instituto Nacional de Defensa Civil (INDECI), *Base de datos de emergencia y daños con poblaciones vulnerables y grupos etáreos 2019–2020*. [Portal oficial](https://portal.indeci.gob.pe/direccion-politicas-y-planes/base-de-datos-de-emergencia-y-danos/base-de-datos-de-emergencia-y-danos-con-poblaciones-vulnerables-y-grupos-etareos-2019-2020/).
+
+**Linaje:** archivo institucional `.xls` → conversión técnica a `.xlsx` sin edición intencional de registros → lectura con `readxl` → reglas explícitas de selección y derivación → CSV procesado. La conversión debe conservarse documentada y verificarse frente al archivo original.
+
+Se analizan variables administrativas de evento y ubicación, sin incorporar identificadores personales. Antes de publicar cualquier versión ampliada se debe verificar que no incluya información que permita identificar personas y revisar las condiciones de reutilización y licencia de la fuente. No se dispone aquí de documentación sobre consentimiento individual; no se presume su existencia ni su necesidad para todos los registros agregados.
+
+# 3. Limpieza e integración
+
+La limpieza es **conservadora y reproducible**: no se imputan daños, no se eliminan atípicos y no se deduplican automáticamente códigos SINPAD. La base original se conserva separada.
+
+```{r}
+#| tbl-cap: "Auditoría básica antes y después de preparar el dataset"
+auditoria <- data.frame(
+  indicador=c("Filas leídas del Excel","Filas retenidas (2019–2020)","Filas excluidas por reglas mínimas","Filas exactamente duplicadas en origen","Códigos SINPAD repetidos entre filas retenidas","Fechas no interpretables en base curada","Valores faltantes de damnificados","Valores negativos de damnificados"),
+  valor=c(nrow(original),nrow(curado),nrow(original)-nrow(curado),sum(duplicated(original)),sum(duplicated(curado$ID_SINPAD)),sum(is.na(curado$FECHA_PARSEADA)),sum(is.na(curado$PERSONAS_DAMNIFICADAS)),sum(curado$PERSONAS_DAMNIFICADAS<0,na.rm=TRUE))
+)
+kable(auditoria)
+```
+
+```{r}
+#| tbl-cap: "Registro de decisiones de preparación"
+decisiones <- data.frame(
+ decision=c("Conservar solo filas con año 2019/2020 y departamento y emergencia presentes","No eliminar registros por ID_SINPAD repetido","Mantener faltantes y ceros en variables de daños","No eliminar valores extremos","Derivar año, mes y etiquetas estandarizadas"),
+ justificacion=c("Separar filas no analíticas y mantener el periodo de estudio","Un código repetido no prueba duplicación de observaciones","Cero y ausencia de dato no son equivalentes","Los eventos extremos son sustantivos en desastres","Facilitar el análisis reproducible"),
+ alternativa_descartada=c("Mantener filas sin información esencial","Eliminar automáticamente todos los IDs repetidos","Imputar cero o mediana sin justificación","Recortar percentiles sin criterio","Usar etiquetas sin normalización"),
+ efecto=c(paste0(nrow(original)-nrow(curado)," filas excluidas"),"No se eliminan por este motivo","Ninguna imputación","Ninguna eliminación","Se crean variables derivadas")
+)
+kable(decisiones)
+```
+
+```{r}
+#| tbl-cap: "Faltantes por variable en el dataset procesado"
+faltantes <- data.frame(variable=names(curado), n_faltantes=vapply(curado,function(x) sum(is.na(x)),numeric(1)))
+faltantes$porcentaje <- round(100*faltantes$n_faltantes/nrow(curado),2)
+kable(faltantes)
+```
+
+No se integran fuentes externas: el trabajo usa un único archivo institucional. El cruce con censos, clima o población se plantea como trabajo futuro y exigiría comprobar compatibilidad espacial y temporal.
+
+# 4. Ingeniería de características
+
+Se derivan `ANIO`, `MES_NUM`, `DEPARTAMENTO`, `TIPO_EMERGENCIA` y los indicadores numéricos de afectación, damnificación, fallecimientos y lesiones. La fecha se interpreta como día/mes/año. Los códigos territoriales se conservan como identificadores y no como magnitudes numéricas.
+
+```{r}
+#| tbl-cap: "Variables seleccionadas para análisis y futuro modelado"
+diccionario <- data.frame(variable=names(curado), tipo=vapply(curado,function(x) class(x)[1],character(1)), faltantes=vapply(curado,function(x) sum(is.na(x)),numeric(1)))
+kable(diccionario)
+```
+
+No se aplican PCA, t-SNE, UMAP, Boruta ni RFE: no son necesarios para este EDA y su uso requeriría definir una tarea predictiva y una validación apropiada. Tampoco se realiza escalamiento ni imputación. Si se aplicaran en la Unidad II, sus parámetros deberán estimarse **dentro de cada partición de entrenamiento** para evitar fuga de información.
+
+# 5. Análisis exploratorio orientado a hipótesis
+
+## H1. Comparación temporal 2019–2020
+
+```{r}
+#| tbl-cap: "Frecuencia anual de registros"
+kable(resumen_anual)
+```
+
+```{r}
+#| fig-cap: "Registros de emergencias por año (conteos de filas del dataset)"
+ggplot(resumen_anual,aes(x=anio,y=registros)) + geom_col(fill="#147d90",width=.6) + geom_text(aes(label=fmt(registros)),vjust=-.4) + labs(x="Año",y="Número de registros",title="Frecuencia anual de emergencias registradas") + theme_minimal(base_size=12) + expand_limits(y=max(resumen_anual$registros)*1.12)
+```
+
+```{r}
+#| results: asis
+mayor <- resumen_anual[which.max(resumen_anual$registros),]
+cat("**Patrón observado:** el año con mayor número de registros es **",mayor$anio,"** (",fmt(mayor$registros)," registros). **Conclusión provisional:** H1 se apoya descriptivamente si los conteos anuales difieren, sin atribuir esa diferencia a un cambio causal en el riesgo.\n",sep="")
+```
+
+## H2. Distribución geográfica
+
+```{r}
+#| fig-cap: "Diez departamentos con más registros de emergencias"
+top <- head(resumen_dep,10)
+ggplot(top,aes(x=reorder(departamento,registros),y=registros)) + geom_col(fill="#2767a3") + coord_flip() + labs(x="Departamento",y="Registros",title="Departamentos con mayor frecuencia registrada") + theme_minimal(base_size=12)
+```
+
+```{r}
+#| results: asis
+cat("**Patrón observado:** el departamento con más registros es **",resumen_dep$departamento[1],"** (",fmt(resumen_dep$registros[1]),"). **Conclusión provisional:** H2 recibe apoyo descriptivo si los conteos no son uniformes; estas cifras no son tasas ajustadas por población o exposición.\n",sep="")
+```
+
+## H3. Damnificados por tipo de emergencia
+
+```{r}
+#| fig-cap: "Distribución de damnificados por tipo de emergencia (10 tipos más frecuentes; escala log1p)"
+tipos <- head(resumen_tipo$tipo,10)
+graf <- curado[curado$TIPO_EMERGENCIA %in% tipos & !is.na(curado$PERSONAS_DAMNIFICADAS) & curado$PERSONAS_DAMNIFICADAS>=0,]
+ggplot(graf,aes(x=reorder(TIPO_EMERGENCIA,PERSONAS_DAMNIFICADAS,FUN=median),y=log1p(PERSONAS_DAMNIFICADAS))) + geom_boxplot(outlier.alpha=.15,fill="#93c5d8") + coord_flip() + labs(x="Tipo de emergencia",y="log(1 + damnificados por registro)",title="Heterogeneidad de damnificados entre tipos de emergencia") + theme_minimal(base_size=11)
+```
+
+```{r}
+#| tbl-cap: "Resumen de damnificados por tipo de emergencia"
+resumen_impacto <- aggregate(PERSONAS_DAMNIFICADAS ~ TIPO_EMERGENCIA, data=curado, FUN=function(x) c(n=length(x),mediana=median(x),p95=as.numeric(quantile(x,.95)),total=sum(x)))
+impacto_tab <- data.frame(tipo=resumen_impacto$TIPO_EMERGENCIA,resumen_impacto$PERSONAS_DAMNIFICADAS)
+impacto_tab <- impacto_tab[order(-impacto_tab$total),]
+kable(head(impacto_tab,12),digits=1)
+```
+
+**Interpretación:** la escala `log(1+x)` facilita visualizar distribuciones con muchos ceros y valores elevados. Los boxplots permiten explorar dispersión, asimetría y diferencias, pero **no constituyen una prueba inferencial**. La conclusión de H3 es provisional; requiere comprobar independencia y unidad de observación antes de contrastar formalmente grupos.
+
+
+
+## EDA complementario: calidad y distribuciones
+
+El EDA examina la **unidad de observación (fila administrativa)**, la completitud, la concentración de registros, la variación mensual y la distribución de damnificados. Los gráficos no deben interpretarse como tasas poblacionales ni como efectos causales.
+
+### Perfil de datos faltantes
+
+```{r}
+#| label: fig-faltantes
+#| fig-cap: "Porcentaje de datos faltantes en las variables del conjunto procesado"
+#| fig-width: 9
+#| fig-height: 5
+perfil_na <- data.frame(variable=names(curado), porcentaje=vapply(curado, function(z) mean(is.na(z))*100, numeric(1)))
+ggplot(perfil_na, aes(x=reorder(variable,porcentaje), y=porcentaje)) +
+  geom_col(fill="#237f96") + coord_flip() +
+  labs(x="Variable",y="Valores faltantes (%)",title="Completitud del dataset curado") +
+  theme_minimal(base_size=11)
+```
+
+La proporción de faltantes es una medida de calidad, no una prueba de que los valores ausentes sean aleatorios. No se sustituyeron faltantes por cero.
+
+### Frecuencia mensual por año
+
+```{r}
+#| label: fig-mensual
+#| fig-cap: "Registros mensuales de emergencias por año, 2019–2020"
+#| fig-width: 10
+#| fig-height: 5
+mensual <- as.data.frame(table(anio=curado$ANIO, mes=curado$MES_NUM))
+mensual <- mensual[!is.na(mensual$mes),]
+mensual$mes <- as.integer(as.character(mensual$mes))
+ggplot(mensual, aes(x=mes,y=Freq,color=anio,group=anio)) +
+  geom_line(linewidth=0.9) + geom_point(size=1.8) +
+  scale_x_continuous(breaks=1:12) +
+  labs(x="Mes",y="Número de registros",color="Año",title="Patrón mensual de emergencias registradas") +
+  theme_minimal(base_size=12)
+```
+
+```{r}
+#| results: asis
+mmax <- mensual[which.max(mensual$Freq),]
+cat("**Patrón descriptivo:** la combinación año-mes con mayor cantidad de filas registradas fue ",mmax$anio," / mes ",mmax$mes," (",fmt(mmax$Freq)," registros). Este resultado no permite concluir estacionalidad con solo dos años.\n",sep="")
+```
+
+### Tipos de emergencia más frecuentes
+
+```{r}
+#| label: fig-tipos
+#| fig-cap: "Diez tipos de emergencia con más registros administrativos"
+#| fig-width: 10
+#| fig-height: 6
+top_tipos <- head(resumen_tipo,10)
+ggplot(top_tipos,aes(x=reorder(tipo,registros),y=registros)) +
+  geom_col(fill="#3973a7") + coord_flip() +
+  labs(x="Tipo de emergencia",y="Número de registros",title="Frecuencia por tipo de emergencia") +
+  theme_minimal(base_size=11)
+```
+
+### Distribución de damnificados por registro
+
+```{r}
+#| label: tbl-damnificados
+#| tbl-cap: "Medidas descriptivas de personas damnificadas por registro válido"
+x <- curado$PERSONAS_DAMNIFICADAS
+x <- x[is.finite(x) & x >= 0]
+if (length(x) > 0) {
+  estad <- data.frame(
+    indicador=c("Registros con dato válido", "Porcentaje con cero", "Media", "Mediana", "P75", "P95", "Máximo"),
+    valor=c(length(x),round(100*mean(x==0),2),round(mean(x),2),median(x),unname(quantile(x,.75)),unname(quantile(x,.95)),max(x)))
+  kable(estad,digits=2)
+} else cat("No existen valores numéricos no negativos para esta variable.")
+```
+
+```{r}
+#| label: fig-distribucion
+#| fig-cap: "Distribución de damnificados por registro (transformación log1p)"
+#| fig-width: 9
+#| fig-height: 5
+if (length(x)>0) {
+  ggplot(data.frame(log_damn=log1p(x)),aes(x=log_damn)) +
+    geom_histogram(bins=40,fill="#298b93",color="white") +
+    labs(x="log(1 + personas damnificadas)",y="Número de registros",title="Asimetría y acumulación de ceros") +
+    theme_minimal(base_size=12)
+}
+```
+
+El logaritmo se usa **solo para visualización**, no altera el CSV procesado. Una concentración en cero y una cola derecha prolongada sugerirían explorar modelos de conteo o modelos con exceso de ceros, sujetos a verificación posterior.
+
+### Concentración territorial de registros
+
+```{r}
+#| label: tbl-concentracion
+#| tbl-cap: "Participación de los diez departamentos con más registros"
+concentracion <- head(resumen_dep,10)
+concentracion$porcentaje <- round(100*concentracion$registros/nrow(curado),2)
+kable(concentracion)
+```
+
+**Precaución:** los conteos por departamento no están ajustados por población, superficie, exposición a amenazas ni capacidad de notificación. Por ello, el ranking no equivale a un ranking de riesgo.
+
+### Asociación exploratoria: año y tipo de emergencia
+
+```{r}
+#| label: fig-composicion
+#| fig-cap: "Composición porcentual de los tipos de emergencia más frecuentes según año"
+#| fig-width: 10
+#| fig-height: 6
+mas_frecuentes <- head(resumen_tipo$tipo,6)
+composicion <- data.frame(anio=as.character(curado$ANIO), tipo=ifelse(curado$TIPO_EMERGENCIA %in% mas_frecuentes,curado$TIPO_EMERGENCIA,"OTROS"))
+composicion <- as.data.frame(table(composicion))
+names(composicion) <- c("anio","tipo","n")
+composicion <- composicion[!is.na(composicion$anio) & composicion$n>0,]
+ggplot(composicion,aes(x=anio,y=n,fill=tipo)) +
+  geom_col(position="fill") +
+  scale_y_continuous(labels=function(z) paste0(round(100*z),"%")) +
+  labs(x="Año",y="Porcentaje de registros",fill="Tipo",title="Composición relativa por año") +
+  theme_minimal(base_size=11)
+```
+
+Esta visualización compara **proporciones**, no volúmenes absolutos. Los cambios pueden reflejar modificaciones en la notificación institucional.
+
+### Síntesis de hipótesis exploratorias
+
+```{r}
+#| label: tbl-hipotesis
+#| tbl-cap: "Síntesis descriptiva de las hipótesis y limitaciones"
+hipotesis <- data.frame(
+ hipotesis=c("H1: diferencias entre años","H2: distribución territorial desigual","H3: damnificados por tipo"),
+ evidencia=c("Conteos anuales y mensuales","Ranking y participación departamental","Boxplot log1p y resumen por tipo"),
+ conclusion=c(if(length(unique(resumen_anual$registros))>1) "Diferencia descriptiva observada" else "Sin diferencia de conteos observada",
+              if(length(unique(resumen_dep$registros))>1) "Concentración descriptiva observada" else "Sin desigualdad de conteos observada",
+              "Exploración visual; no se ejecuta contraste inferencial"),
+ limitacion=c("Dos años; cobertura del registro","Sin ajuste por población o exposición","Posible dependencia y ceros; no implica causalidad")
+)
+kable(hipotesis)
+```
+
+Las conclusiones son provisionales. No se declara confirmación estadística de hipótesis mediante gráficos descriptivos.
+
+# 6. Hallazgos y decisiones para la Unidad II
+
+**Unidad de análisis:** registro administrativo de emergencia. No se presume que cada fila represente necesariamente un evento único sin revisar la definición oficial del identificador SINPAD.
+
+**Propuesta de modelado:** predecir el número de personas damnificadas por registro, mediante modelos de conteo o enfoques adecuados a datos con exceso de ceros. Esta propuesta queda sujeta a evaluación de la distribución y a la disponibilidad de predictores conocidos antes del evento.
+
+**Variables candidatas:** año, mes, departamento, provincia/distrito y tipo de emergencia, tras evaluar su calidad y temporalidad. **Variable respuesta:** `PERSONAS_DAMNIFICADAS`.
+
+**Riesgos y decisiones:**
+
+- **Fuga de información:** no utilizar como predictores los daños observados después del evento (`PERSONAS_AFECTADAS`, fallecidos, lesionados) para una predicción anticipada.
+- **Dependencia:** registros del mismo lugar, evento o fecha podrían no ser independientes; revisar duplicidad de identificadores y definir particiones temporales o agrupadas.
+- **Desbalance y ceros:** cuantificar registros con cero damnificados antes de elegir el modelo y las métricas.
+- **Cobertura temporal:** solo dos años; cualquier generalización a otros periodos debe considerarse limitada.
+- **Preprocesamiento:** imputación, codificación entrenable y escalamiento se ajustarán exclusivamente con los datos de entrenamiento en validación cruzada.
+
+# 7. Reproducibilidad, limitaciones y ética
+
+El archivo original `.xls` se preserva fuera del proceso de modificación. La copia `.xlsx` es un insumo técnico para `readxl`; el script de este Quarto genera `data/procesado/emergencias_2019_2020_curado.csv` en cada ejecución. Las decisiones se documentan en la sección 3. El archivo debe publicarse solo tras comprobar licencia y ausencia de datos personales identificables.
+
+**Uso de IA generativa:** se utilizó ChatGPT como apoyo para estructurar el protocolo, redactar explicaciones y elaborar código Quarto/R. Los datos proceden del INDECI; los resultados deben verificarse mediante la ejecución del código y la revisión académica correspondiente.
+
+# Referencia
+
+Instituto Nacional de Defensa Civil (INDECI). (s. f.). *Base de datos de emergencia y daños con poblaciones vulnerables y grupos etáreos 2019–2020*. [Portal institucional](https://portal.indeci.gob.pe/direccion-politicas-y-planes/base-de-datos-de-emergencia-y-danos/base-de-datos-de-emergencia-y-danos-con-poblaciones-vulnerables-y-grupos-etareos-2019-2020/).

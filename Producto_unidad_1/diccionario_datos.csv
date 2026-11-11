@@ -1,0 +1,14 @@
+variable,descripcion,tipo_escala,transformacion,fuente
+ID_SINPAD,Identificador del registro SINPAD,Identificador,Original sin modificación,INDECI 2019-2020
+FECHA_PARSEADA,Fecha de emergencia,Fecha,Conversión desde FECHA con formato día/mes/año,INDECI 2019-2020
+ANIO,Año de registro,Entero,AÑO convertido a entero,INDECI 2019-2020
+MES_NUM,Mes numérico,Entero,Derivado de FECHA_PARSEADA,INDECI 2019-2020
+COD_DISTRITO,Código territorial reportado,Texto,"Se preserva como identificador, sin inferir catálogo",INDECI 2019-2020
+DEPARTAMENTO,Departamento,Categoría,Normalización de espacios y mayúsculas,INDECI 2019-2020
+PROV,Provincia,Categoría,Original,INDECI 2019-2020
+DIST,Distrito,Categoría,Original,INDECI 2019-2020
+TIPO_EMERGENCIA,Tipo de emergencia,Categoría,Normalización de espacios y mayúsculas,INDECI 2019-2020
+PERSONAS_AFECTADAS,Total de afectados reportados,Conteo,Conversión numérica desde AFECTADOS,INDECI 2019-2020
+PERSONAS_DAMNIFICADAS,Total de damnificados reportados,Conteo,Conversión numérica desde DAMNI,INDECI 2019-2020
+PERSONAS_FALLECIDAS,Total de fallecidos reportados,Conteo,Conversión numérica desde FALLE,INDECI 2019-2020
+PERSONAS_LESIONADAS,Total de lesionados reportados,Conteo,Conversión numérica desde LESI,INDECI 2019-2020
