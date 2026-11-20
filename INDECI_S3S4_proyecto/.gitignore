@@ -1,0 +1,23 @@
+# --- R y RStudio ---------------------------------------------------
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+
+# --- Quarto --------------------------------------------------------
+/.quarto/
+*_files/
+*_cache/
+
+# --- Datos crudos ----------------------------------------------------
+# No se suben: pueden ser grandes (GitHub rechaza archivos de más de 100 MB)
+# o contener datos sensibles. Su origen se documenta en data/raw/README.md
+# y el código los descarga o los lee de nuevo.
+data/raw/*
+!data/raw/README.md
+!data/raw/.gitkeep
+
+# --- Sistema operativo -------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini

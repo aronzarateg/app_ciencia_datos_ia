@@ -1,0 +1,125 @@
+---
+title: "Impacto de desastres naturales — INDECI"
+subtitle: "Sesiones 3 y 4 · Análisis exploratorio y preparación de variables"
+author: "Proyecto de análisis de datos"
+date: today
+lang: es
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    code-fold: true
+    embed-resources: true
+    theme: cosmo
+execute:
+  warning: false
+  message: false
+---
+
+## Objetivo y alcance
+
+Analizar los resultados agregados por tipo de evento y región natural. **La fuente no contiene registros individuales**; las pruebas se muestran tal como aparecen en el Excel, sin recalcularlas.
+
+## A0 · Carga y verificación
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(tidyr)
+library(here)
+library(scales)
+leer <- function(nombre) read_csv(here("data", "processed", paste0(nombre, ".csv")), show_col_types = FALSE)
+desc <- leer("1_Descriptivos")
+normal <- leer("2_Shapiro_Wilk")
+levene <- leer("3_Levene")
+kw <- leer("4_Kruskal_Wallis")
+dunn <- leer("5_Dunn_Bonferroni")
+region <- leer("6_Region_Natural")
+clasif <- leer("7_Clasificacion")
+eta <- leer("8_Eta_cuadrado")
+stopifnot(all(c("tipo_evento", "n", "media", "mediana") %in% names(desc)))
+stopifnot(nrow(desc) > 0, nrow(kw) > 0)
+tibble(Hoja = c("Descriptivos", "Shapiro-Wilk", "Levene", "Kruskal-Wallis", "Dunn", "Región", "Clasificación", "Eta cuadrado"), Filas = c(nrow(desc), nrow(normal), nrow(levene), nrow(kw), nrow(dunn), nrow(region), nrow(clasif), nrow(eta))) |> kable()
+```
+
+## A1 · Análisis exploratorio orientado a hipótesis
+
+### A1.1 Descriptivos de impacto
+
+```{r}
+desc |> arrange(desc(total)) |> select(tipo_evento, grupo_impacto, n, media, mediana, P75, P95, total, pct_total, pct_ceros) |> kable(digits = 2)
+```
+
+```{r}
+ggplot(desc, aes(x = reorder(tipo_evento, total), y = total, fill = grupo_impacto)) +
+  geom_col() + coord_flip() +
+  scale_y_continuous(labels = label_number(big.mark = ",")) +
+  labs(title = "Damnificados acumulados por tipo de evento", x = "Tipo de evento", y = "Total reportado", fill = "Grupo de impacto") + theme_minimal()
+```
+
+**Interpretación:** los totales reflejan la suma reportada en la hoja descriptiva. Las medias pueden estar influenciadas por valores extremos; revisar conjuntamente mediana, P75, P95 y porcentaje de ceros.
+
+### A1.2 Normalidad y homogeneidad
+
+```{r}
+normal |> kable()
+levene |> kable()
+```
+
+Las pruebas se presentan como **resultados ya calculados** en el libro fuente. No se ejecutan sobre medias agrupadas.
+
+### A1.3 Hipótesis principal: Kruskal-Wallis
+
+```{r}
+kw |> kable()
+eta |> kable()
+```
+
+La hoja de Kruskal-Wallis reporta diferencias globales estadísticamente significativas entre tipos de evento. El contraste global no identifica por sí mismo qué pares difieren.
+
+### A1.4 Comparaciones post hoc
+
+```{r}
+dunn |> mutate(significativo = !is.na(p.adj) & p.adj < 0.05) |>
+  count(significativo, name = "comparaciones") |> kable()
+dunn |> filter(!is.na(p.adj), p.adj < 0.05) |>
+  arrange(p.adj) |> select(group1, group2, statistic, p.adj, p.adj.signif) |>
+  head(25) |> kable(digits = 5)
+```
+
+Se muestran las primeras 25 comparaciones significativas ordenadas por p ajustado. El archivo CSV contiene el conjunto completo.
+
+### A1.5 Diferencias por región natural
+
+```{r}
+region |> kable(digits = 3)
+ggplot(region, aes(x = reorder(region, n), y = n)) + geom_col(fill = "#267A88") + coord_flip() +
+  labs(title = "Registros por región natural", x = "Región", y = "Número de registros") + theme_minimal()
+```
+
+## A2 · Preparación de características
+
+La clasificación de impacto es una variable **ya derivada** en el Excel. No se estiman características a nivel de registro ni se hace partición de entrenamiento/prueba porque solo se dispone de tablas agregadas.
+
+```{r}
+clasif |> arrange(desc(media)) |> kable(digits = 2)
+```
+
+## A3 · Selección de variables
+
+Para un análisis posterior con microdatos se proponen como variables candidatas: tipo de evento, región natural y número de damnificados, siempre que existan como columnas originales. No se estima importancia predictiva con los resúmenes actuales.
+
+## A4 · Reducción de dimensionalidad
+
+No se ejecuta PCA: faltan las observaciones individuales y la matriz de variables originales. Aplicarlo a estos resúmenes respondería una pregunta distinta.
+
+## A5 · Conclusiones y reproducibilidad
+
+- Se documentan y visualizan las ocho hojas del Excel de INDECI.
+- Los valores de las pruebas son resultados de origen, no nuevos cálculos.
+- Se requiere la base individual para replicar inferencias, evaluar fuga de datos y continuar con modelos de ensamble.
+- Evitar interpretar asociaciones entre grupos como causalidad.
+
+**Uso de IA:** se utilizó asistencia para adaptar la estructura del laboratorio, generar scripts y documentar límites de reproducibilidad. Los resultados estadísticos proceden del Excel suministrado.
