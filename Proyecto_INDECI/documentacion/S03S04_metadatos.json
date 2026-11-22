@@ -1,0 +1,51 @@
+{
+  "n_original": 142139,
+  "n_natural": 106301,
+  "positive": 29653,
+  "zero": 76648,
+  "development": 72300,
+  "test": 34001,
+  "original_sha256": "a1fe63f0a7c836b8ff7dd1c87271d3bd3144f8444e41f93b7db205c85fef2687",
+  "assoc": [
+    {
+      "variable": "PELIGRO",
+      "n": 106301,
+      "categorias": 16,
+      "chi2": 9895.887916659412,
+      "gl": 15,
+      "valor_p": 0.0,
+      "v_cramer": 0.3051115926134045,
+      "min_esperado": 16.458236517060048
+    },
+    {
+      "variable": "DEPARTAMENTO",
+      "n": 106301,
+      "categorias": 26,
+      "chi2": 4870.238885431223,
+      "gl": 25,
+      "valor_p": 0.0,
+      "v_cramer": 0.21404567500102356,
+      "min_esperado": 30.12694142105907
+    },
+    {
+      "variable": "REGION_NATURAL",
+      "n": 106301,
+      "categorias": 4,
+      "chi2": 2642.8809141687084,
+      "gl": 3,
+      "valor_p": 0.0,
+      "v_cramer": 0.15767764405550455,
+      "min_esperado": 2529.5472667237373
+    },
+    {
+      "variable": "MES_NOMBRE",
+      "n": 106301,
+      "categorias": 12,
+      "chi2": 2098.3653161383554,
+      "gl": 11,
+      "valor_p": 0.0,
+      "v_cramer": 0.14049856047888978,
+      "min_esperado": 1420.4294973706737
+    }
+  ]
+}

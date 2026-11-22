@@ -1,0 +1,7 @@
+{
+  "red_elegida": "R3_3_media",
+  "metrica_seleccion": "AUC validacion 2022, parsimonia <=0.005",
+  "sistema": "PyTorch",
+  "n_validacion": 5318,
+  "n_test": 34001
+}

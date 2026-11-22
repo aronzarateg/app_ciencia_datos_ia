@@ -1,2 +1,0 @@
-﻿Prueba,df1,df2,Estadistico,p_valor,Conclusion
-Levene,16,94852,61.653,1.06e-198 (p < 0.0001),RECHAZADA — Varianzas heterogéneas → Kruskal-Wallis válido

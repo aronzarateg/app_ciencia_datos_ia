@@ -1,0 +1,27 @@
+{
+  "total": 106301,
+  "desarrollo": 72300,
+  "prueba_temporal": 34001,
+  "positivos_total": 29653,
+  "positivos_desarrollo": 19571,
+  "positivos_prueba": 10082,
+  "train_anios": "2003-2022",
+  "test_anios": "2023-2025",
+  "fold_val_anios": [
+    2018,
+    2019,
+    2020,
+    2021,
+    2022
+  ],
+  "predictores": [
+    "PELIGRO",
+    "DPTO.",
+    "REGIÓN NATURAL",
+    "MES",
+    "AÑO"
+  ],
+  "respuesta": "DAMNIFICADOS > 0",
+  "umbral": 0.5,
+  "semilla": 2026
+}

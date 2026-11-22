@@ -1,0 +1,77 @@
+---
+title: "Bitácora de investigación · INDECI"
+subtitle: "Aprendizaje automático e interpretabilidad de emergencias de origen natural en el Perú (2003–2025)"
+lang: es
+sidebar: false
+---
+
+## Presentación del proyecto
+
+::: {.callout-tip title="Navega por el proyecto"}
+Utiliza el menu **Sesiones** situado en la parte superior para abrir la propuesta inicial, los laboratorios en Quarto y los resultados documentados. En **Artículo científico** iremos integrando los hallazgos validados a lo largo del curso.
+
+[**Ver todas las sesiones**](sesiones/index.qmd) | [**Abrir laboratorio A (sesiones 3 y 4)**](sesiones/S03S04_laboratorio_A_INDECI.qmd)
+:::
+
+Este repositorio reúne la **propuesta inicial, los laboratorios de cada sesión, el código reproducible y los resultados** que servirán de base para elaborar un **artículo científico final**.
+
+**Pregunta de investigación:** ¿Cuál es el desempeño predictivo y la interpretabilidad de los modelos de aprendizaje automático para clasificar las emergencias de origen natural registradas en el Perú durante el periodo 2003–2025, según la presencia o ausencia de personas damnificadas, a partir de sus características geográficas, temporales y del tipo de peligro?
+
+**Fuente de datos:** [INDECI – Emergencias y daños a nivel nacional](https://www.datosabiertos.gob.pe/dataset/emergencias-y-da%C3%B1os-nivel-nacional-por-departamento).
+
+## Avance por sesiones
+
+| Sesión | Trabajo | Archivos |
+|:--|:--|:--|
+| **01** | Propuesta inicial, pregunta, alcance y consideraciones FAIR | [Quarto](sesiones/S01_propuesta_inicial.qmd) · [Markdown](sesiones/S01_propuesta_inicial.md) |
+| **03–04** | Revisión de datos, análisis exploratorio y preparación para modelado | [Laboratorio A](sesiones/S03S04_laboratorio_A_INDECI.qmd) · [EDA automático](sesiones/S03S04_EDA_automatico_INDECI.qmd) · [Resultados preliminares](sesiones/S03S04_resultados_preliminares.md) |
+| **05–06** | Comparación de modelos, redes neuronales, tres referencias verificadas y adelanto de artículo | [Entregable Quarto](sesiones/S05S06_entregable_unidad2.qmd) · [Markdown](sesiones/S05S06_entregable_unidad2.md) |
+| **Próximas sesiones** | Interpretabilidad, reproducibilidad y comunicación científica | Nuevos documentos por incorporar |
+
+> **Estado del proyecto:** la propuesta y los archivos de exploración de las sesiones 3 y 4 están incorporados. La comparación preliminar de modelos y de redes neuronales de la Unidad II ya fue ejecutada con una prueba temporal 2023–2025. El artículo final y la evaluación de interpretabilidad se desarrollarán progresivamente.
+
+## Estructura de carpetas
+
+```text
+Proyecto_INDECI/
+├── Proyecto_INDECI.Rproj
+├── _quarto.yml
+├── index.qmd
+├── README.md
+├── datos/
+│   ├── 00_original/       # CSV original, sin modificar
+│   └── 01_procesados/     # Datos derivados, cuando corresponda
+├── sesiones/              # Un archivo Quarto o Markdown por avance
+├── scripts/               # Funciones y scripts R reutilizables
+├── resultados/
+│   ├── tablas/            # Tablas exportadas
+│   └── figuras/           # Gráficos exportados
+├── articulo/              # Manuscrito científico en construcción
+└── documentacion/         # Bitácora, diccionario y decisiones
+```
+
+## Flujo de trabajo
+
+1. **Conservar la fuente original.** Mantener `datos/00_original/BD_2003-2025_EMERGENCIAS.csv` sin alteraciones.
+2. **Preparar los datos.** Documentar limpieza, exclusiones y transformaciones; guardar los archivos derivados en `datos/01_procesados/`.
+3. **Avanzar por sesión.** Incorporar nuevos `.qmd` y `.md` en `sesiones/`, y reutilizar funciones en `scripts/`.
+4. **Guardar resultados.** Exportar tablas y figuras a `resultados/`, evitando copiar manualmente valores entre documentos.
+5. **Construir el artículo.** Integrar progresivamente métodos, resultados, discusión y referencias en `articulo/`.
+6. **Mantener reproducibilidad.** Registrar las decisiones metodológicas, versiones y fuentes. No subir bases extensas o datos sensibles a GitHub sin revisar condiciones de publicación.
+
+## Próximos pasos
+
+- Revisar y ejecutar en RStudio el laboratorio de las sesiones 3 y 4.
+- Verificar la calidad de los predictores y la definición de la variable dependiente.
+- Incorporar el laboratorio de las sesiones 5 y 6, revisar la sensibilidad de clasificación y más adelante examinar su interpretabilidad.
+- Actualizar el manuscrito a medida que existan resultados comprobados.
+
+## Cómo generar esta bitácora
+
+Desde la carpeta principal del proyecto, en la terminal de RStudio:
+
+```bash
+quarto render
+```
+
+Ahora se genera un sitio navegable en `_site/`. **Importante:** para que los enlaces del menu funcionen, Quarto debe renderizar tambien las paginas de `sesiones/`; algunos laboratorios requieren los paquetes R y los scripts del proyecto. Al agregar una sesion, actualiza los enlaces de `_quarto.yml` y `sesiones/index.qmd`.

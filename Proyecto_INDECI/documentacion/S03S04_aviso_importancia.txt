@@ -1,0 +1,1 @@
+La importancia por permutacion se calculo con Random Forest y una submuestra del conjunto de desarrollo (hasta 2022); NO es Boruta. AUC interno en validacion exploratoria: 0.76057. No es resultado de prueba final ni comparacion de modelos.

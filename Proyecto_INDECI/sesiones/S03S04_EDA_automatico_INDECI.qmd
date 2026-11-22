@@ -1,0 +1,153 @@
+---
+title: "EDA automático | Registros de emergencias naturales INDECI"
+subtitle: "Sesiones 3 y 4 · Calidad, distribución, asociaciones y alertas"
+author: "Estudiante de Estadística"
+lang: es
+date: "2026-11-22"
+format:
+  html:
+    toc: true
+    theme: cosmo
+    code-fold: show
+  docx:
+    toc: true
+execute:
+  echo: true
+  warning: false
+  message: false
+params:
+  max_tipos_grafico: 12
+---
+
+Este documento adapta el `eda_automatico.qmd` suministrado en el laboratorio original para la pregunta concreta de INDECI. El código utiliza el mismo CSV original que la propuesta, sin reemplazarlo por datos sintéticos.
+
+**Advertencia:** en los registros de SINPAD, los valores cero se conservan; los códigos de desastre repetidos se investigarán antes de eliminar observaciones. Las asociaciones observadas no son causales.
+
+```{r}
+#| label: preparar
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(knitr)
+source("scripts/funciones_indeci.R", encoding = "UTF-8")
+df <- cargar_indeci_natural()
+comprobar_indeci(df)
+```
+
+# 1. Estructura y unidades de análisis
+
+```{r}
+#| label: estructura
+tibble::tibble(indicador = c("Fuente", "Registros originales", "Registros naturales",
+                               "Variables analíticas", "Tipos de peligro", "Departamentos", "Periodo"),
+               valor = c("INDECI/SINPAD", as.character(attr(df,"n_original")),
+                         as.character(nrow(df)), as.character(ncol(df)),
+                         as.character(n_distinct(df$PELIGRO)),
+                         as.character(n_distinct(df$DEPARTAMENTO)), "2003–2025")) |> knitr::kable()
+```
+
+# 2. Calidad de datos y registros
+
+```{r}
+#| label: faltantes
+faltantes <- tibble::tibble(
+  variable = names(df),
+  n_faltante = vapply(df, function(x) sum(is.na(x) | (is.character(x) & trimws(x) == "")), numeric(1))
+) |> mutate(porcentaje = round(100 * n_faltante / nrow(df), 2))
+faltantes |> filter(n_faltante > 0) |> knitr::kable()
+cat("Registros completos repetidos (en columnas analíticas):", sum(duplicated(df)), "\n")
+cat("Códigos SINPAD repetidos (no necesariamente duplicados):", sum(duplicated(df$SINPAD)), "\n")
+cat("Fechas no interpretables:", sum(is.na(df$FECHA_NORMALIZADA)), "\n")
+```
+
+# 3. Variable dependiente: damnificados
+
+```{r}
+#| label: respuesta
+res <- df |> count(TIENE_DAMNIFICADOS, name = "registros") |>
+  mutate(porcentaje = round(100 * registros / sum(registros), 2))
+res |> knitr::kable()
+ggplot(df, aes(x = TIENE_DAMNIFICADOS)) +
+  geom_bar(fill = "#0B4169") + theme_minimal() +
+  labs(x = "¿Registra personas damnificadas?", y = "Número de registros")
+```
+
+# 4. Estadística descriptiva del número de damnificados
+
+```{r}
+#| label: descriptivos
+x <- df$DAMNIFICADOS_NUM
+n <- sum(!is.na(x)); media <- mean(x, na.rm = TRUE); desv <- sd(x, na.rm = TRUE)
+asimetria <- mean((x[!is.na(x)] - media)^3) / desv^3
+tibble::tibble(n = n, media = media, mediana = median(x, na.rm = TRUE),
+               desviacion = desv, p95 = unname(quantile(x, .95, na.rm = TRUE)),
+               maximo = max(x, na.rm = TRUE), asimetria = asimetria) |>
+  mutate(across(where(is.numeric), ~ round(.x, 2))) |> knitr::kable()
+# Solo para visualizar: log1p no modifica los valores originales.
+ggplot(df, aes(x = log1p(DAMNIFICADOS_NUM))) +
+  geom_histogram(bins = 45, fill = "#0B4169") +
+  labs(title = "Distribución de damnificados (logaritmo de 1 + cantidad)",
+       x = "log(1 + damnificados)", y = "Registros") + theme_minimal()
+```
+
+# 5. Distribución por peligro y región natural
+
+```{r}
+#| label: peligros
+top <- df |> group_by(PELIGRO) |>
+  summarise(n = n(), tasa = mean(TIENE_DAMNIFICADOS == "Si"), .groups = "drop") |>
+  arrange(desc(n))
+head(top, params$max_tipos_grafico) |> mutate(tasa_pct = round(100 * tasa, 1)) |>
+  select(-tasa) |> knitr::kable()
+ggplot(head(top, params$max_tipos_grafico), aes(reorder(PELIGRO, tasa), tasa)) +
+  geom_col(fill = "#0B4169") + coord_flip() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Peligro", y = "Registros con damnificados") + theme_minimal()
+regiones <- df |> group_by(REGION_NATURAL) |>
+  summarise(n = n(), tasa = mean(TIENE_DAMNIFICADOS == "Si"), .groups = "drop")
+regiones |> mutate(tasa_pct = round(100 * tasa, 2)) |> select(-tasa) |> knitr::kable()
+```
+
+# 6. Asociación con el resultado y tamaños del efecto
+
+```{r}
+#| label: efectos
+pred <- c("PELIGRO", "DEPARTAMENTO", "REGION_NATURAL", "MES_NOMBRE")
+res <- lapply(pred, function(v) {
+  t <- table(df[[v]], df$TIENE_DAMNIFICADOS)
+  mutate(cramer_v(t), variable = v, .before = 1)
+}) |> bind_rows() |> arrange(desc(v_cramer))
+res |> mutate(valor_p = format.pval(valor_p, digits = 3, eps = .001),
+              across(c(chi2, v_cramer), ~ round(.x, 3))) |> knitr::kable()
+```
+
+# 7. Evolución anual de la proporción de registros con damnificados
+
+```{r}
+#| label: temporal
+tempor <- df |> group_by(ANIO) |>
+  summarise(n = n(), tasa = mean(TIENE_DAMNIFICADOS == "Si"), .groups = "drop")
+ggplot(tempor, aes(ANIO, tasa)) + geom_line(color = "#0B4169") +
+  geom_point(color = "#0B4169") + scale_y_continuous(labels = scales::percent) +
+  geom_vline(xintercept = 2022.5, linetype = 2) +
+  labs(x = "Año", y = "Proporción de registros con damnificados") + theme_minimal()
+```
+
+# 8. Alertas para el investigador
+
+```{r}
+#| label: alertas
+alertas <- tibble::tibble(
+  observacion = c("Ceros del resultado", "Códigos SINPAD repetidos", "Cambios de periodo",
+                  "Asimetría en damnificados", "Fuga de información"),
+  criterio = c("No convertir ceros automáticamente en valores perdidos",
+               "Verificar el identificador y posibles registros relacionados",
+               "Validar modelos en años posteriores, no solo con partición aleatoria",
+               "Reportar mediana, percentiles y gráficos además de la media",
+               "Excluir otras medidas de daño y ayuda si son posteriores al resultado")
+)
+alertas |> knitr::kable()
+```
+
+**Fuente:** INDECI/SINPAD, Portal Nacional de Datos Abiertos. <https://www.datosabiertos.gob.pe/dataset/emergencias-y-da%C3%B1os-nivel-nacional-por-departamento>

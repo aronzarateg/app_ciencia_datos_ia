@@ -1,0 +1,322 @@
+---
+title: "Laboratorio A | Preparación, EDA e ingeniería de variables"
+subtitle: "Sesiones 3 y 4 · Aplicación a INDECI, Perú 2003–2025"
+author: "Estudiante de Estadística"
+date: "2026-11-22"
+lang: es
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-title: "Contenido"
+    theme: cosmo
+    code-fold: show
+  docx:
+    toc: true
+execute:
+  echo: true
+  warning: false
+  message: false
+  error: false
+params:
+  ejecutar_boruta: false
+  ejecutar_umap: false
+---
+
+::: {.callout-note}
+**Origen del procedimiento.** Adaptación del archivo `S3S4_parte1.qmd` entregado para las sesiones 3 y 4, que utiliza biopsias de mama como ejemplo. Aquí se utiliza exclusivamente el conjunto de datos original de INDECI, **sin inventar resultados ni convertir las variables de daños en predictores**.
+
+**Pregunta del proyecto:** ¿Cuál es el desempeño predictivo y la interpretabilidad de modelos de aprendizaje automático para clasificar registros de emergencias de origen natural con y sin damnificados según características geográficas, temporales y del peligro?
+
+**Alcance de este laboratorio A:** A0–A5: auditoría, EDA, ingeniería, selección y reducción de dimensionalidad. No equivale al laboratorio B de entrenamiento y comparación de cinco modelos, que no estaba incluido en el ZIP compartido.
+:::
+
+# A0. Preparar el proyecto y los datos
+
+## A0.0. Instalación (solo en consola, la primera vez)
+
+```{r}
+#| eval: false
+install.packages(c("readr", "dplyr", "tidyr", "ggplot2", "tibble", "recipes",
+                   "knitr", "scales", "Boruta", "uwot"))
+```
+
+## A0.1. Importación reproducible y validación inicial
+
+**Por qué:** el CSV original usa separador `;` y codificación Latin-1. Las fechas de 2025 vienen en formato mes/día/año, diferente del resto de los años. Se mantienen los códigos administrativos como texto para no perder ceros iniciales.
+
+```{r}
+#| label: a0-lectura
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(readr)
+library(recipes)
+library(knitr)
+set.seed(2026)
+source("scripts/funciones_indeci.R", encoding = "UTF-8")
+datos <- cargar_indeci_natural()
+comprobar_indeci(datos)
+tibble::tibble(
+  indicador = c("Registros originales", "Registros de origen natural", "Variables analíticas",
+                "Con damnificados", "Sin damnificados", "Fechas faltantes"),
+  valor = c(attr(datos, "n_original"), nrow(datos), ncol(datos),
+            sum(datos$TIENE_DAMNIFICADOS == "Si"),
+            sum(datos$TIENE_DAMNIFICADOS == "No"),
+            sum(is.na(datos$FECHA_NORMALIZADA)))
+) |> knitr::kable()
+```
+
+**Qué observar:** el conjunto original contiene 142 139 filas; origen natural, 106 301; con damnificados, 29 653; sin damnificados, 76 648.
+
+## A0.2. Calidad: faltantes, unicidad y consistencia
+
+```{r}
+#| label: a0-calidad
+calidad <- tibble::tibble(
+  variable = names(datos),
+  faltantes = vapply(datos, function(x) sum(is.na(x) | (is.character(x) & trimws(x) == "")), numeric(1))
+) |> mutate(porcentaje = round(100 * faltantes / nrow(datos), 2))
+calidad |> filter(faltantes > 0) |> knitr::kable()
+tibble::tibble(
+  indicador = c("Filas completamente repetidas", "Identificadores SINPAD repetidos",
+                "Valores negativos en damnificados", "Valores no enteros en damnificados"),
+  cantidad = c(attr(datos, "duplicadas_original"), sum(duplicated(datos$SINPAD)),
+               sum(datos$DAMNIFICADOS_NUM < 0, na.rm = TRUE),
+               sum(datos$DAMNIFICADOS_NUM %% 1 != 0, na.rm = TRUE))
+) |> knitr::kable()
+```
+
+**Nota metodológica:** un SINPAD repetido no demuestra, por sí solo, un registro duplicado. Los ceros de damnificados se mantienen; no son automáticamente datos faltantes.
+
+# A1. EDA orientado a la pregunta de investigación
+
+## A1.1. Caracterización y proporción de registros positivos
+
+```{r}
+#| label: a1-distribucion
+resumen_peligros <- datos |>
+  group_by(PELIGRO) |>
+  summarise(registros = n(), con_damnificados = sum(TIENE_DAMNIFICADOS == "Si"),
+            tasa = mean(TIENE_DAMNIFICADOS == "Si"), .groups = "drop") |>
+  arrange(desc(registros))
+resumen_peligros |> head(16) |> mutate(tasa = scales::percent(tasa, accuracy = 0.1)) |> knitr::kable()
+ggplot(head(resumen_peligros, 10), aes(x = reorder(PELIGRO, tasa), y = tasa)) +
+  geom_col(fill = "#0C4573") + coord_flip() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Tipo de peligro", y = "Registros con damnificados",
+       title = "Presencia de damnificados según peligro (10 tipos más frecuentes)") +
+  theme_minimal(base_size = 11)
+```
+
+## A1.2. Hipótesis descriptiva: tipo de peligro y presencia de damnificados
+
+**H0:** la presencia de damnificados es independiente del tipo de peligro en los registros estudiados. **H1:** existe asociación entre ambas variables. Utilizamos chi-cuadrado de Pearson y V de Cramér para cuantificar la magnitud, no solo la significación.
+
+```{r}
+#| label: a1-chi
+variables <- c("PELIGRO", "DEPARTAMENTO", "REGION_NATURAL", "MES_NOMBRE")
+asociaciones <- lapply(variables, function(v) {
+  t <- table(datos[[v]], datos$TIENE_DAMNIFICADOS)
+  dplyr::mutate(cramer_v(t), variable = v, .before = 1)
+}) |> dplyr::bind_rows()
+asociaciones |>
+  mutate(chi2 = round(chi2, 2), v_cramer = round(v_cramer, 3),
+         valor_p = format.pval(valor_p, digits = 3, eps = 0.001)) |> knitr::kable()
+```
+
+**Interpretación:** con tamaños muestrales grandes, un valor p pequeño puede acompañar asociaciones de efecto limitado. La V de Cramér indica el tamaño de asociación, sin implicar causalidad. Los resultados se refieren a los registros reportados, no a una muestra probabilística de todas las emergencias ocurridas.
+
+## A1.3. Composición temporal y geográfica
+
+```{r}
+#| label: a1-series
+anual <- datos |>
+  group_by(ANIO) |>
+  summarise(n = n(), tasa = mean(TIENE_DAMNIFICADOS == "Si"), .groups = "drop")
+ggplot(anual, aes(x = ANIO, y = tasa)) + geom_line(color = "#0C4573") +
+  geom_point(color = "#0C4573") +
+  geom_vline(xintercept = 2022.5, linetype = "dashed") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Año", y = "Registros con damnificados",
+       title = "Evolución anual y corte de evaluación temporal") + theme_minimal()
+regiones <- datos |> group_by(REGION_NATURAL) |>
+  summarise(n = n(), tasa = mean(TIENE_DAMNIFICADOS == "Si"), .groups = "drop")
+regiones |> mutate(tasa = scales::percent(tasa, accuracy = 0.1)) |> knitr::kable()
+```
+
+## A1.4. Precauciones sobre las hipótesis
+
+No usaremos como predictoras otras consecuencias registradas después de la emergencia (afectados, fallecidos, viviendas destruidas, ayuda humanitaria). Estas variables podrían revelar el resultado y dar una evaluación engañosa. Por la misma razón, el identificador SINPAD y el código de fila se conservarán solo para auditoría.
+
+# A2. Ingeniería de características sin fuga de información
+
+## A2.1. Separación temporal antes de ajustar transformaciones
+
+**Cambio deliberado respecto del ejemplo docente:** por tratarse de datos históricos, separamos el periodo de desarrollo **2003–2022** del periodo reservado para **2023–2025**. Esto permite observar la generalización a años posteriores y evita mezclar aleatoriamente registros de periodos futuros. No se evalúan modelos aún.
+
+```{r}
+#| label: a2-particion
+base_modelado <- datos |>
+  select(TIENE_DAMNIFICADOS, PELIGRO, DEPARTAMENTO,
+         REGION_NATURAL, MES_NOMBRE, ANIO) |>
+  filter(!is.na(TIENE_DAMNIFICADOS), !is.na(ANIO))
+entreno <- base_modelado |> filter(ANIO <= 2022)
+prueba <- base_modelado |> filter(ANIO >= 2023)
+stopifnot(nrow(entreno) == 72300L, nrow(prueba) == 34001L)
+tibble::tibble(
+  conjunto = c("Desarrollo (2003–2022)", "Prueba reservada (2023–2025)"),
+  registros = c(nrow(entreno), nrow(prueba)),
+  porcentaje_positivos = 100 * c(mean(entreno$TIENE_DAMNIFICADOS == "Si"),
+                                  mean(prueba$TIENE_DAMNIFICADOS == "Si"))
+) |> mutate(porcentaje_positivos = round(porcentaje_positivos, 2)) |> knitr::kable()
+```
+
+## A2.2. Construir la receta exclusivamente con entrenamiento
+
+```{r}
+#| label: a2-receta
+receta <- recipes::recipe(TIENE_DAMNIFICADOS ~ ., data = entreno) |>
+  recipes::step_unknown(recipes::all_nominal_predictors(), new_level = "DESCONOCIDO") |>
+  recipes::step_novel(recipes::all_nominal_predictors(), new_level = "NUEVO") |>
+  recipes::step_other(recipes::all_nominal_predictors(), threshold = 0.005, other = "OTROS") |>
+  recipes::step_dummy(recipes::all_nominal_predictors()) |>
+  recipes::step_zv(recipes::all_predictors()) |>
+  recipes::step_normalize(recipes::all_numeric_predictors())
+receta_entrenada <- recipes::prep(receta, training = entreno, retain = TRUE)
+receta_entrenada
+```
+
+**Explicación:** `step_unknown` trata ausencias categóricas; `step_novel` maneja categorías nuevas en la prueba; `step_other` agrupa categorías poco frecuentes; `step_dummy` codifica variables categóricas; `step_zv` excluye predictores constantes y `step_normalize` normaliza parámetros. Todo se aprende solo con `entreno`.
+
+## A2.3. Aplicar la receta sin volver a ajustar en prueba
+
+```{r}
+#| label: a2-aplicar
+entreno_proc <- recipes::bake(receta_entrenada, new_data = entreno)
+prueba_proc <- recipes::bake(receta_entrenada, new_data = prueba)
+stopifnot(identical(names(entreno_proc), names(prueba_proc)))
+cat("Columnas originales para modelar:", ncol(entreno), "\n")
+cat("Columnas después del procesamiento:", ncol(entreno_proc), "\n")
+cat("Entrenamiento:", nrow(entreno_proc), "| prueba:", nrow(prueba_proc), "\n")
+```
+
+## A2.4. Comprobación de fugas
+
+```{r}
+#| label: a2-fugas
+col_num <- names(entreno_proc)[vapply(entreno_proc, is.numeric, logical(1))]
+chequeo <- tibble::tibble(
+  variable = col_num,
+  media_entreno = vapply(entreno_proc[col_num], mean, numeric(1)),
+  media_prueba = vapply(prueba_proc[col_num], mean, numeric(1))
+)
+chequeo |> head(12) |> mutate(across(where(is.numeric), ~ round(.x, 3))) |> knitr::kable()
+```
+
+Las medias de entrenamiento estarán alrededor de 0 por construcción; las de prueba pueden diferir, porque no se calculó su propia normalización. Esto es correcto y deseable.
+
+# A3. Selección de variables
+
+Se propone **Boruta** como en el laboratorio docente, pero únicamente sobre el conjunto de desarrollo y con una submuestra representativa para evitar procesar decenas de miles de observaciones innecesariamente. Como Boruta puede ser costoso, este bloque es opcional: activa `ejecutar_boruta: true` en el encabezado.
+
+```{r}
+#| label: a3-boruta
+if (params$ejecutar_boruta) {
+  if (!requireNamespace("Boruta", quietly = TRUE)) stop("Instala Boruta")
+  set.seed(2026)
+  sel_idx <- sample.int(nrow(entreno_proc), min(5000, nrow(entreno_proc)))
+  bor <- Boruta::Boruta(TIENE_DAMNIFICADOS ~ ., data = as.data.frame(entreno_proc[sel_idx, ]),
+                        doTrace = 0, maxRuns = 50)
+  print(bor)
+  print(Boruta::attStats(bor))
+} else {
+  cat("Boruta no ejecutado en el render por defecto. Activa ejecutar_boruta: true para correrlo.\n")
+}
+```
+
+**Importante:** los resultados de Boruta no se deben inventar ni sustituir por otra medida de importancia sin explicitarlo. El laboratorio exploratorio complementario en Python contiene una **importancia por permutación provisional**, que es otro procedimiento distinto.
+
+# A4. Reducción de dimensionalidad
+
+## A4.1. PCA exploratorio sobre una submuestra de entrenamiento
+
+Las variables originalmente son categóricas; el PCA que sigue opera sobre su codificación numérica, **no sobre medidas morfológicas continuas como en el ejemplo de biopsias**. Por ello, la proporción de varianza explicada y las figuras no deben compararse directamente con las del material docente.
+
+```{r}
+#| label: a4-pca
+set.seed(2026)
+idx_pca <- sample.int(nrow(entreno_proc), min(5000L, nrow(entreno_proc)))
+x_pca <- entreno_proc[idx_pca, , drop = FALSE] |> select(-TIENE_DAMNIFICADOS)
+x_pca <- x_pca[, vapply(x_pca, function(x) sd(x) > 0, logical(1)), drop = FALSE]
+pca <- stats::prcomp(x_pca, center = TRUE, scale. = FALSE)
+varianza <- pca$sdev^2 / sum(pca$sdev^2)
+tibble::tibble(PC = seq_len(min(5, length(varianza))),
+               proporcion = round(head(varianza, 5), 4),
+               acumulada = round(head(cumsum(varianza), 5), 4)) |> knitr::kable()
+plot_pca <- tibble::tibble(
+  PC1 = pca$x[, 1], PC2 = pca$x[, 2],
+  categoria = entreno_proc$TIENE_DAMNIFICADOS[idx_pca]
+)
+ggplot(plot_pca, aes(PC1, PC2, color = categoria)) +
+  geom_point(alpha = 0.22, size = 0.5) +
+  labs(title = "PCA exploratorio de predictores codificados", color = "Damnificados") +
+  theme_minimal()
+```
+
+## A4.2. UMAP: visualización exploratoria (opcional)
+
+UMAP es una técnica de visualización no supervisada: **se ajusta únicamente con los predictores de entrenamiento**. La posible separación visual no equivale a capacidad predictiva demostrada.
+
+```{r}
+#| label: a4-umap
+if (params$ejecutar_umap) {
+  if (!requireNamespace("uwot", quietly = TRUE)) stop("Instala uwot")
+  set.seed(2026)
+  sel <- sample.int(nrow(x_pca), min(2500L, nrow(x_pca)))
+  x_umap <- as.matrix(x_pca[sel, , drop = FALSE])
+  config <- c(10, 30, 60)
+  plots <- lapply(config, function(k) {
+    emb <- uwot::umap(x_umap, n_neighbors = min(k, nrow(x_umap) - 1L),
+                      min_dist = 0.15, n_threads = 1, ret_model = FALSE)
+    tibble::tibble(UMAP1 = emb[, 1], UMAP2 = emb[, 2],
+                   clase = plot_pca$categoria[sel], vecinos = paste("n_neighbors =", k))
+  }) |> dplyr::bind_rows()
+  print(ggplot(plots, aes(UMAP1, UMAP2, color = clase)) +
+          geom_point(alpha = .25, size = .5) + facet_wrap(~ vecinos) +
+          theme_minimal() + labs(title = "UMAP de predictores (solo desarrollo)"))
+} else {
+  cat("UMAP no ejecutado por defecto. Activa ejecutar_umap: true para correrlo.\n")
+}
+```
+
+# A5. Guardar resultados reproducibles
+
+```{r}
+#| label: a5-guardar
+folder <- "datos/01_procesados"
+dir.create(folder, showWarnings = FALSE, recursive = TRUE)
+readr::write_delim(datos, file.path(folder, "INDECI_natural_modelo_base_R.csv"), delim = ";", na = "")
+readr::write_delim(entreno_proc, file.path(folder, "INDECI_train_proc_R.csv"), delim = ";", na = "")
+readr::write_delim(prueba_proc, file.path(folder, "INDECI_test_proc_R.csv"), delim = ";", na = "")
+cat("Archivos procesados exportados; los originales no fueron modificados.\n")
+```
+
+## Registro de decisiones metodológicas
+
+| Decisión | Justificación |
+|---|---|
+| Conservar el CSV original | Trazabilidad y reproducibilidad |
+| Filtrar `ORIGEN NATURAL` | Coherencia con la pregunta |
+| No eliminar ceros de damnificados | Son parte del resultado a clasificar |
+| No usar otras consecuencias de la emergencia para predecir | Evitar fuga de información |
+| Desarrollo 2003–2022; prueba 2023–2025 | Evaluar generalización a años posteriores |
+| Codificación y normalización con entrenamiento | Evitar conocer información del conjunto de prueba |
+| Chi-cuadrado + V de Cramér | Relación entre variables categóricas y tamaño del efecto |
+| PCA/UMAP solo exploratorios | No confundir agrupación visual con desempeño de clasificación |
+
+## Limitaciones y próximos pasos
+
+El indicador `DAMNIFICADOS = 0` se trata provisionalmente como ausencia de damnificados; su interpretación y posibles cambios de criterios de registro deben contrastarse con el diccionario oficial. También hay registros de códigos SINPAD repetidos que necesitan examen documental. En el laboratorio B se validarán los modelos con procedimientos que respeten, cuando corresponda, el orden temporal y los agrupamientos de eventos. No se debe utilizar el conjunto 2023–2025 para seleccionar hiperparámetros.
+
+**Fuente:** INDECI/SINPAD, Portal Nacional de Datos Abiertos. <https://www.datosabiertos.gob.pe/dataset/emergencias-y-da%C3%B1os-nivel-nacional-por-departamento>

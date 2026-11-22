@@ -1,0 +1,61 @@
+# Proyecto Quarto: sitio navegable para las sesiones y el articulo futuro.
+# Sustituye este archivo en la raiz de Proyecto_INDECI.
+project:
+  type: website
+  output-dir: _site
+  execute-dir: project
+  render:
+    - index.qmd
+    - sesiones/*.qmd
+    - sesiones/*.md
+    - articulo/*.qmd
+
+website:
+  title: "INDECI | Bitácora"
+  page-navigation: true
+  navbar:
+    background: "#073763"
+    foreground: "#FFFFFF"
+    pinned: true
+    search: true
+    left:
+      - text: "Inicio"
+        icon: house
+        href: index.qmd
+      - text: "Sesiones"
+        icon: journal-text
+        menu:
+          - text: "Todas las sesiones"
+            href: sesiones/index.qmd
+          - text: "S01 - Propuesta (Quarto)"
+            href: sesiones/S01_propuesta_inicial.qmd
+          - text: "S01 - Propuesta (Markdown)"
+            href: sesiones/S01_propuesta_inicial.md
+          - text: "S03-04 - Laboratorio A"
+            href: sesiones/S03S04_laboratorio_A_INDECI.qmd
+          - text: "S03-04 - EDA automático"
+            href: sesiones/S03S04_EDA_automatico_INDECI.qmd
+          - text: "S03-04 - Resultados preliminares"
+            href: sesiones/S03S04_resultados_preliminares.md
+          - text: "S05-06 - Entregable Unidad II"
+            href: sesiones/S05S06_entregable_unidad2.qmd
+          - text: "S05-06 - Lectura Markdown"
+            href: sesiones/S05S06_entregable_unidad2.md
+      - text: "Artículo científico"
+        icon: file-earmark-text
+        href: articulo/index.qmd
+    right:
+      - text: "Datos: INDECI"
+        icon: database
+        href: https://www.datosabiertos.gob.pe/dataset/emergencias-y-da%C3%B1os-nivel-nacional-por-departamento
+        target: _blank
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 2
+    code-tools: true
+    smooth-scroll: true
+
+lang: es

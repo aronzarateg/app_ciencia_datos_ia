@@ -1,0 +1,166 @@
+---
+title: "Propuesta inicial de investigación"
+subtitle: "Desempeño predictivo e interpretabilidad de modelos para emergencias de origen natural en el Perú (2003–2025)"
+author: "Ruth Maritza Quispe Pampa, Aron Zarate Gonzales, Alcides Flores Paredes, Guido Nicomedes Mamani Zapana, Alfredo Pezo Ríos
+"
+date: "2026-11-22"
+lang: es
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: false
+    theme: cosmo
+  docx:
+    toc: true
+    number-sections: false
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+**Curso:** Análisis de Datos con Inteligencia Artificial Aplicada  
+**Fuente de información:** Instituto Nacional de Defensa Civil (INDECI), SINPAD.
+
+# 1. Título provisional y contexto
+
+**Título provisional:** *Desempeño predictivo e interpretabilidad de modelos de aprendizaje automático para clasificar emergencias de origen natural con y sin personas damnificadas en el Perú, 2003–2025*.
+
+El Perú presenta exposición a fenómenos naturales como lluvias intensas, inundaciones, deslizamientos, huaicos, sismos y bajas temperaturas. Estos fenómenos pueden ocasionar daños a las viviendas, la infraestructura y las condiciones de vida de la población. Por ello, analizar los registros históricos de emergencias resulta relevante para comprender los patrones asociados a sus impactos.
+
+El Instituto Nacional de Defensa Civil (INDECI), mediante el Sistema de Información Nacional para la Respuesta y Rehabilitación (SINPAD), registra información sobre emergencias y daños en el territorio peruano. Esta información constituye una fuente de datos para explorar herramientas de aprendizaje automático orientadas a identificar patrones relacionados con la presencia de personas damnificadas.
+
+La propuesta consiste en comparar modelos de clasificación supervisada para evaluar cuáles discriminan mejor entre registros de emergencias con y sin personas damnificadas y explicar qué características contribuyen a sus predicciones. El proyecto se desarrollará progresivamente durante el curso: primero se revisarán y prepararán los datos; luego se realizará el modelado; por último se abordarán la interpretabilidad, la reproducibilidad, los posibles sesgos y la comunicación de resultados en un artículo científico.
+
+# 2. Dataset propuesto
+
+**Nombre:** *Emergencias y daños a nivel nacional por departamento – SINPAD (2003–2025)*.
+
+**Fuente:** Instituto Nacional de Defensa Civil (INDECI), Plataforma Nacional de Datos Abiertos del Estado Peruano.
+
+**Enlace de acceso:** <https://www.datosabiertos.gob.pe/dataset/emergencias-y-da%C3%B1os-nivel-nacional-por-departamento>
+
+El archivo original revisado presenta **142 139 registros y 49 variables**. Como delimitación inicial, se propone trabajar con **106 301 registros** clasificados como emergencias de origen natural. Estas cifras corresponden a la revisión preliminar del archivo disponible y deberán verificarse al consolidar la versión analítica definitiva.
+
+**Unidad representada por cada registro:** un registro distrital de emergencia incluido en el sistema de información, con datos sobre fecha, ubicación, tipo de peligro y daños reportados. Es necesario verificar si existen registros relacionados con una misma emergencia antes de efectuar la partición de datos para los modelos.
+
+## Variables previstas
+
+| Función | Variables | Uso propuesto |
+|---|---|---|
+| Resultado | Personas damnificadas (`DAMNIFICADOS`) | Construir una variable binaria de presencia/ausencia |
+| Predictor preliminar | Tipo de peligro | Clasificación del evento |
+| Predictores preliminares | Departamento, provincia y distrito | Ubicación geográfica |
+| Predictores preliminares | Año y mes del evento | Características temporales |
+| Contexto descriptivo | Personas afectadas, fallecidas y otros daños | Describir impactos; no incorporarlos automáticamente como predictores |
+
+La variable dependiente se definirá, *si la documentación del dato confirma que un cero significa ausencia de damnificados*, como:
+
+$$
+Y = \begin{cases}
+1, & \text{si el registro reporta una o más personas damnificadas}; \\
+0, & \text{si el registro reporta cero personas damnificadas}.
+\end{cases}
+$$
+
+Los valores faltantes no se interpretarán automáticamente como ceros. Se revisarán su significado y el contexto de registro antes de construir la variable resultado.
+
+**Acceso y uso:** la información está publicada en el portal oficial de datos abiertos. Se conservará la atribución a INDECI y se revisarán las condiciones de licencia y reutilización indicadas en la ficha de publicación.
+
+# 3. Pregunta de investigación
+
+**¿Cuál es el desempeño predictivo y la interpretabilidad de los modelos de aprendizaje automático para clasificar las emergencias de origen natural registradas en el Perú durante el periodo 2003–2025, según la presencia o ausencia de personas damnificadas, a partir de sus características geográficas, temporales y del tipo de peligro?**
+
+Se plantea un problema de **clasificación binaria**. La pregunta puede abordarse con modelos de árbol de decisión, Random Forest, XGBoost, regresión logística penalizada con Elastic Net, Stacking y una red neuronal artificial.
+
+El rendimiento se comparará mediante AUC-ROC, sensibilidad, especificidad y F1. También se analizarán las matrices de confusión y la distribución de las categorías para evitar conclusiones basadas únicamente en la exactitud global. La interpretabilidad se abordará posteriormente mediante importancia de variables y, cuando corresponda, técnicas como SHAP o LIME. Estos análisis permitirán explicar predicciones, no establecer efectos causales.
+
+## Objetivo general
+
+**Evaluar y comparar el desempeño predictivo y la interpretabilidad de modelos de aprendizaje automático para clasificar los registros de emergencias de origen natural en el Perú durante 2003–2025 según la presencia o ausencia de personas damnificadas, utilizando características geográficas, temporales y del tipo de peligro.**
+
+## Objetivos específicos
+
+1. Caracterizar la base histórica de emergencias de origen natural y evaluar la calidad de los registros y de las variables disponibles para la predicción.
+2. Entrenar y comparar modelos de clasificación supervisada mediante procedimientos de validación adecuados y métricas de desempeño predictivo.
+3. Examinar la importancia de las variables y explicar las predicciones de los modelos seleccionados mediante técnicas de interpretabilidad, como SHAP o LIME cuando sean pertinentes.
+4. Explorar posibles diferencias de rendimiento entre ámbitos geográficos, en grupos con tamaños suficientes, y documentar las decisiones analíticas para favorecer la reproducibilidad.
+
+# 4. Alcance inicial
+
+**Enfoque:** cuantitativo.  
+**Propósito:** predictivo, comparativo e interpretativo.  
+**Diseño:** no experimental, basado en análisis secundario de datos históricos.  
+**Ámbito:** Perú.  
+**Periodo:** 2003–2025.  
+**Unidad de análisis:** registro distrital de emergencia de origen natural.
+
+En la primera etapa del curso se revisarán las características, estructura, calidad y posibilidades analíticas del conjunto de datos. En las siguientes etapas se evaluará la capacidad de diferentes algoritmos para clasificar la presencia de personas damnificadas en registros no utilizados durante su entrenamiento; posteriormente se examinará la interpretación de sus predicciones y la posible variación de su rendimiento por ámbitos geográficos.
+
+**Limitaciones previstas:** variaciones en los procedimientos de registro a lo largo de los años, posibles datos faltantes e inconsistencias, distribución desigual de eventos por región y año, y posibles registros relacionados con una misma emergencia. Además, la información disponible refleja las emergencias notificadas y no necesariamente la totalidad de los eventos ocurridos.
+
+Los resultados se interpretarán como **asociaciones predictivas**, no como pruebas de causalidad. La propuesta no pretende pronosticar la ocurrencia futura de desastres, sino clasificar registros a partir de características que estén disponibles en el momento definido para la predicción.
+
+# 5. Etapa prevista de aplicación de IA
+
+La aplicación principal de inteligencia artificial se proyecta para la etapa de **modelado y análisis predictivo** del ciclo de vida de los datos.
+
+El trabajo seguirá, de manera progresiva, estas fases:
+
+1. **Comprensión y curación:** revisar el diccionario de datos, codificaciones, valores perdidos, formatos de fechas, duplicados e inconsistencias.
+2. **Definición del problema:** establecer el resultado binario y comprobar cuáles predictores estarían disponibles antes de conocer el resultado.
+3. **Partición y preparación:** reservar datos de prueba independientes; ajustar la imputación y la codificación de variables solo con los datos de entrenamiento.
+4. **Modelado:** comparar árbol de decisión, Random Forest, XGBoost, Elastic Net logístico, Stacking y una red neuronal.
+5. **Validación:** utilizar validación cruzada durante el desarrollo, con un diseño temporal o agrupado cuando corresponda, y evaluar una sola vez el conjunto final de prueba.
+6. **Interpretabilidad:** examinar importancia de variables y, si es apropiado, aplicar SHAP o LIME para explicar resultados globales y predicciones individuales.
+7. **Ética y reproducibilidad:** explorar el desempeño entre grupos geográficos sin interpretar diferencias como causalidad o discriminación probada; documentar el código, versiones, criterios y decisiones.
+8. **Comunicación científica:** integrar gradualmente los métodos, tablas, figuras y hallazgos en un manuscrito con estructura IMRyD.
+
+El uso de inteligencia artificial es pertinente porque puede ayudar a detectar patrones complejos en registros históricos. No obstante, la elección del modelo dependerá de su rendimiento en datos no vistos, su estabilidad y su interpretabilidad, y no de su complejidad por sí sola.
+
+**En esta entrega no se entrenan modelos ni se aplican técnicas de explicabilidad**: se formula el proyecto y se establece una estrategia de trabajo que se implementará durante el curso. Las técnicas de interpretabilidad, la evaluación de sesgos y la redacción del artículo se desarrollarán en unidades posteriores.
+
+# 6. Consideraciones iniciales sobre los datos
+
+El proyecto tomará como referencia los principios **FAIR**: encontrables (*Findable*), accesibles (*Accessible*), interoperables (*Interoperable*) y reutilizables (*Reusable*).
+
+Para fortalecer la documentación y la reutilización del conjunto de datos se realizarán las siguientes acciones:
+
+- Registrar el nombre de la fuente, el enlace oficial, la fecha de descarga y la versión utilizada.
+- Conservar una copia sin modificaciones del archivo original.
+- Elaborar un diccionario de variables y una bitácora de limpieza reproducible.
+- Utilizar formatos abiertos, como CSV, y scripts de R o Python debidamente documentados.
+- Publicar la propuesta y el código del proyecto en GitHub, sin incluir información restringida ni archivos cuya licencia impida su redistribución.
+
+El dataset se presenta como información pública organizada por registros de emergencia. Aun así, antes de publicar cualquier versión derivada se verificará la ausencia de identificadores personales y datos sensibles, así como las condiciones de uso del portal. El tratamiento de información seguirá criterios de integridad, trazabilidad y reproducibilidad. También se declarará el uso de herramientas de inteligencia artificial cuando corresponda, se revisarán los riesgos de sesgo y se evitará presentar la importancia predictiva como explicación causal.
+
+# Organización inicial del proyecto en RStudio, Quarto y GitHub
+
+Se utilizará la estructura ya creada del proyecto, incorporando un nuevo documento por cada sesión. Los datos originales se conservarán sin modificaciones y los resultados futuros se almacenarán en carpetas separadas:
+
+```text
+Proyecto_INDECI_Inicial/
+├── Proyecto_INDECI.Rproj
+├── _quarto.yml
+├── README.md
+├── datos/
+│   ├── 00_original/
+│   │   └── BD_2003-2025_EMERGENCIAS.csv
+│   └── 01_procesados/
+├── sesiones/
+│   ├── S01_propuesta_inicial.qmd
+│   └── S01_propuesta_inicial.md
+├── scripts/
+├── resultados/
+│   ├── tablas/
+│   └── figuras/
+├── articulo/
+└── documentacion/
+```
+
+El archivo `README.md` explica el propósito y la organización del proyecto. La carpeta `sesiones/` alojará los trabajos de cada clase; `scripts/` almacenará código reproducible; `resultados/` reunirá tablas y figuras, y `articulo/` se reservará para elaborar progresivamente el manuscrito científico final. Los archivos originales se usarán solo como insumo y no se sobrescribirán. El `.gitignore` excluye la base original de GitHub, por lo que debe citarse la fuente oficial para facilitar el acceso a otros investigadores.
+
+# Fuente de los datos
+
+Instituto Nacional de Defensa Civil (INDECI). (s. f.). *Emergencias y daños a nivel nacional por departamento* [Conjunto de datos]. Plataforma Nacional de Datos Abiertos del Estado Peruano. <https://www.datosabiertos.gob.pe/dataset/emergencias-y-da%C3%B1os-nivel-nacional-por-departamento>

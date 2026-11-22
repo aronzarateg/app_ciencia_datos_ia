@@ -1,0 +1,17 @@
+# Datos originales y versiones procesadas: se mantienen localmente
+datos/00_original/*.csv
+datos/01_procesados/*.csv
+datos/01_procesados/*.xlsx
+
+# Archivos temporales y resultados de renderizado
+.Rhistory
+.RData
+.Rproj.user/
+.quarto/
+_output/
+*_files/
+*.html
+~$*
+
+/.quarto/
+**/*.quarto_ipynb

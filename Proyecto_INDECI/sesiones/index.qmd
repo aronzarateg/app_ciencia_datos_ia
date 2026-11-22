@@ -1,0 +1,31 @@
+---
+title: "Sesiones del proyecto"
+subtitle: "Acceso directo a los laboratorios y documentos de la investigación INDECI"
+lang: es
+---
+
+Esta pagina reune los archivos que vamos agregando **sesión por sesión**, sin modificar la base de datos original. El menu superior permite pasar directamente de un documento a otro.
+
+## Sesión 01 - Propuesta de investigacion
+
+- [**Propuesta inicial (Quarto)**](S01_propuesta_inicial.qmd): pregunta, objetivos, base de datos, alcance y principios FAIR.
+- [**Propuesta inicial (Markdown)**](S01_propuesta_inicial.md): version de lectura y control en GitHub.
+
+## Sesiones 03 y 04 - Preparación y exploración
+
+- [**Laboratorio A (Quarto)**](S03S04_laboratorio_A_INDECI.qmd): auditoría, EDA, ingeniería y selección de variables.
+- [**EDA automático (Quarto)**](S03S04_EDA_automatico_INDECI.qmd): exploración y verificaciones automatizadas.
+- [**Resultados preliminares (Markdown)**](S03S04_resultados_preliminares.md): resultados y cautelas metodológicas.
+
+## Sesiones 05 y 06 - Modelos, redes y artículo
+
+- [**Entregable completo de la Unidad II (Quarto)**](S05S06_entregable_unidad2.qmd): cuatro tareas, evaluación temporal, redes neuronales, referencias y borrador de artículo.
+- [**Entregable en Markdown**](S05S06_entregable_unidad2.md): versión de consulta en GitHub.
+
+## Próximas sesiones
+
+Los siguientes `.qmd` y `.md` se incorporarán cuando se desarrollen en clase. No se presentan como realizados analisis que todavia estan pendientes.
+
+::: {.callout-note title="Como incorporar una nueva sesion"}
+Guarda el archivo en `sesiones/`, agrega su enlace en esta pagina y añade una opcion al menu de **Sesiones** dentro de `_quarto.yml`. Después genera nuevamente el sitio con `quarto render` desde la raíz del proyecto.
+:::

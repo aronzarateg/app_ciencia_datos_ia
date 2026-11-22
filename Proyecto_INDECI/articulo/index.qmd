@@ -1,0 +1,23 @@
+---
+title: "Artículo científico"
+subtitle: "Manuscrito en construcción a partir de los análisis del proyecto INDECI"
+lang: es
+---
+
+El artículo se construirá **progresivamente**, a medida que los resultados de cada sesión sean verificables y metodológicamente consistentes.
+
+## Estructura prevista
+
+1. **Introducción:** contexto, antecedentes y pregunta de investigación.
+2. **Métodos:** fuente INDECI/SINPAD, limpieza, definición de variables y evaluación de modelos.
+3. **Resultados:** estadística descriptiva, comparación predictiva e interpretabilidad.
+4. **Discusión:** interpretación de los hallazgos, limitaciones y relevancia.
+5. **Conclusiones y referencias.**
+
+::: {.callout-warning title="Estado actual"}
+Ya existe un **primer borrador del artículo en la tarea 3 de las sesiones 5 y 6**, basado en resultados de prueba temporal. No constituye todavía un artículo final: falta ampliar antecedentes, explicabilidad, calibración y discusión.
+:::
+
+[Consultar los avances de las sesiones](../sesiones/index.qmd)
+
+[**Leer el primer adelanto del artículo (sesiones 5–6)**](../sesiones/S05S06_entregable_unidad2.qmd#tarea-3-adelanto-de-articulo-cientifico-una-pagina)
